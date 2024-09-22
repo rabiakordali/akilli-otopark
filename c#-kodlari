@@ -1,0 +1,168 @@
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Drawing;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+using System.IO.Ports;
+
+namespace Forms_Ard
+{
+    public partial class Form1 : Form
+    {
+        
+        public Form1()
+        {
+            InitializeComponent();
+        }
+
+        
+        bool baglantiDurum = false;
+
+        void portListele()
+        {
+            cBoxPort.Items.Clear();
+
+            string[] portListe = SerialPort.GetPortNames();
+            foreach (string port in portListe)
+            {
+                cBoxPort.Items.Add(port);
+            }
+            serialPort.DataReceived += new SerialDataReceivedEventHandler(serialPort_DataReceived);
+        }
+        private void Form1_Load(object sender, EventArgs e)
+        {
+            gBoxPark.Enabled = false;
+            portListele();
+  
+        }
+
+        private void serialPort_DataReceived(object sender, SerialDataReceivedEventArgs e)
+        {
+            try
+            {
+                string alinanVeri = serialPort.ReadLine().Trim();
+                string[] values = alinanVeri.Split(',');
+
+                if (values.Length == 4)
+                {
+                    string sayac = values[3];
+
+                    this.Invoke((MethodInvoker)(() => {
+                        lblToplam.Text = sayac;
+                    }));
+
+                    int p1Value, p2Value, p3Value;
+                    if (int.TryParse(values[0], out p1Value) 
+                 && int.TryParse(values[1], out p2Value) && int.TryParse(values[2], out p3Value))
+                    {
+                        renkDegis(p1Value, p2Value, p3Value);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message);
+            }
+        }
+        private void renkDegis(int p1Value, int p2Value, int p3Value)
+        {
+
+            if (this.InvokeRequired)
+            {
+                this.Invoke((MethodInvoker)delegate {
+                    renkDegis(p1Value, p2Value, p3Value);
+                }); 
+                return;
+            }
+
+            if (p1Value == 1)
+            {
+                buttonP1.BackColor = Color.DarkRed; // P1 sensöründe araç var
+            }
+            else
+            {
+                buttonP1.BackColor = Color.Green; // P1 sensöründe araç yok
+            }
+
+            if (p2Value == 1)
+            {
+                buttonP2.BackColor = Color.DarkRed;
+            }
+            else
+            {
+                buttonP2.BackColor = Color.Green; 
+            }
+
+            if (p3Value == 1)
+            {
+                buttonP3.BackColor = Color.DarkRed; 
+            }
+            else
+            {
+                buttonP3.BackColor = Color.Green;
+            }
+        }
+
+        private void buttonBaglan_Click(object sender, EventArgs e)
+        {
+            if (baglantiDurum == false)
+            {
+                try
+                {
+                    serialPort.PortName = cBoxPort.GetItemText(cBoxPort.SelectedItem);
+                    serialPort.BaudRate = 9600;
+                    serialPort.Open();
+
+                    cBoxPort.Enabled = false;
+                    buttonYenile.Enabled = false;
+                    baglantiDurum = true;
+                    buttonBaglan.Text = "Bitir";
+                    gBoxPark.Enabled = true;
+                }
+                catch (UnauthorizedAccessException)
+                {
+                    MessageBox.Show("Seri porta erişim izni reddedildi. Başka bir uygulama bu portu kullanıyor olabilir.", "Bağlantı Hatası");
+                }
+                catch (System.IO.IOException)
+                {
+                    MessageBox.Show("Seri porta erişimde bir hata oluştu. Lütfen cihazın bağlı olduğundan ve doğru portu seçtiğinizden emin olun.", "Bağlantı Hatası");
+                }
+                catch (ArgumentException)
+                {
+                    MessageBox.Show("Geçersiz port adı. Lütfen geçerli bir port seçtiğinizden emin olun.", "Bağlantı Hatası");
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show(ex.Message, "Bağlantı Hatası");
+                }
+            }
+            else
+            {
+                if (serialPort.IsOpen)
+                {
+                    serialPort.Close();
+                }
+                baglantiDurum = false;
+                buttonBaglan.Text = "Bağlan";
+                cBoxPort.Enabled = true;
+                buttonYenile.Enabled = true;
+                gBoxPark.Enabled = false;
+            }
+        }
+        private void buttonYenile_Click(object sender, EventArgs e)
+        {
+            cBoxPort.Items.Clear();
+            portListele();
+        }
+
+        private void Form1_FormClosed(object sender, FormClosedEventArgs e)
+        {
+            if (serialPort.IsOpen) serialPort.Close();
+        }
+       
+    }
+}
